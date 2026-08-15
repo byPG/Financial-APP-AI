@@ -1,10 +1,10 @@
-# FinAlly — AI Trading Workstation
+# Finance App — AI Trading Workstation
 
 ## Project Specification
 
 ## 1. Vision
 
-FinAlly (Finance Ally) is a visually stunning AI-powered trading workstation that streams live market data, lets users trade a simulated portfolio, and integrates an LLM chat assistant that can analyze positions and execute trades on the user's behalf. It looks and feels like a modern Bloomberg terminal with an AI copilot.
+Finance App (Finance Ally) is a visually stunning AI-powered trading workstation that streams live market data, lets users trade a simulated portfolio, and integrates an LLM chat assistant that can analyze positions and execute trades on the user's behalf. It looks and feels like a modern Bloomberg terminal with an AI copilot.
 
 This is the capstone project for an agentic AI coding course. It is built entirely by Coding Agents demonstrating how orchestrated AI agents can produce a production-quality full-stack application. Agents interact through files in `planning/`.
 
@@ -41,6 +41,7 @@ The user runs a single Docker command (or a provided start script). A browser op
 Brand colors:
 
 ## Color Scheme
+
 - Accent Yellow: `#ecad0a`
 - Blue Primary: `#209dd7`
 - Purple Secondary: `#753991` (submit buttons)
@@ -73,14 +74,14 @@ Brand colors:
 
 ### Why These Choices
 
-| Decision | Rationale |
-|---|---|
-| SSE over WebSockets | One-way push is all we need; simpler, no bidirectional complexity, universal browser support |
-| Static Next.js export | Single origin, no CORS issues, one port, one container, simple deployment |
-| SQLite over Postgres | No auth = no multi-user = no need for a database server; self-contained, zero config |
-| Single Docker container | Students run one command; no docker-compose for production, no service orchestration |
-| uv for Python | Fast, modern Python project management; reproducible lockfile; what students should learn |
-| Market orders only | Eliminates order book, limit order logic, partial fills — dramatically simpler portfolio math |
+| Decision                | Rationale                                                                                     |
+| ----------------------- | --------------------------------------------------------------------------------------------- |
+| SSE over WebSockets     | One-way push is all we need; simpler, no bidirectional complexity, universal browser support  |
+| Static Next.js export   | Single origin, no CORS issues, one port, one container, simple deployment                     |
+| SQLite over Postgres    | No auth = no multi-user = no need for a database server; self-contained, zero config          |
+| Single Docker container | Students run one command; no docker-compose for production, no service orchestration          |
+| uv for Python           | Fast, modern Python project management; reproducible lockfile; what students should learn     |
+| Market orders only      | Eliminates order book, limit order logic, partial fills — dramatically simpler portfolio math |
 
 ---
 
@@ -198,11 +199,13 @@ The backend checks for the SQLite database on startup (or first request). If the
 All tables include a `user_id` column defaulting to `"default"`. This is hardcoded for now (single-user) but enables future multi-user support without schema migration.
 
 **users_profile** — User state (cash balance)
+
 - `id` TEXT PRIMARY KEY (default: `"default"`)
 - `cash_balance` REAL (default: `10000.0`)
 - `created_at` TEXT (ISO timestamp)
 
 **watchlist** — Tickers the user is watching
+
 - `id` TEXT PRIMARY KEY (UUID)
 - `user_id` TEXT (default: `"default"`)
 - `ticker` TEXT
@@ -210,6 +213,7 @@ All tables include a `user_id` column defaulting to `"default"`. This is hardcod
 - UNIQUE constraint on `(user_id, ticker)`
 
 **positions** — Current holdings
+
 - `id` TEXT PRIMARY KEY (UUID)
 - `user_id` TEXT (default: `"default"`)
 - `ticker` TEXT
@@ -218,6 +222,7 @@ All tables include a `user_id` column defaulting to `"default"`. This is hardcod
 - `updated_at` TEXT (ISO timestamp)
 
 **trades** — Trade history (append-only log)
+
 - `id` TEXT PRIMARY KEY (UUID)
 - `user_id` TEXT (default: `"default"`)
 - `ticker` TEXT
@@ -227,12 +232,14 @@ All tables include a `user_id` column defaulting to `"default"`. This is hardcod
 - `executed_at` TEXT (ISO timestamp)
 
 **portfolio_snapshots** — Portfolio value over time (for P&L chart)
+
 - `id` TEXT PRIMARY KEY (UUID)
 - `user_id` TEXT (default: `"default"`)
 - `total_value` REAL
 - `recorded_at` TEXT (ISO timestamp)
 
 **chat_messages** — Conversation history with LLM
+
 - `id` TEXT PRIMARY KEY (UUID)
 - `user_id` TEXT (default: `"default"`)
 - `role` TEXT (`"user"` or `"assistant"`)
@@ -250,33 +257,38 @@ All tables include a `user_id` column defaulting to `"default"`. This is hardcod
 ## 8. API Endpoints
 
 ### Market Data
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/stream/prices` | SSE stream of live price updates |
+
+| Method | Path                 | Description                      |
+| ------ | -------------------- | -------------------------------- |
+| GET    | `/api/stream/prices` | SSE stream of live price updates |
 
 ### Portfolio
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/portfolio` | Current positions, cash balance, total value, unrealized P&L |
-| POST | `/api/portfolio/trade` | Execute a trade: `{ticker, quantity, side}` |
-| GET | `/api/portfolio/history` | Portfolio value snapshots over time (for P&L chart) |
+
+| Method | Path                     | Description                                                  |
+| ------ | ------------------------ | ------------------------------------------------------------ |
+| GET    | `/api/portfolio`         | Current positions, cash balance, total value, unrealized P&L |
+| POST   | `/api/portfolio/trade`   | Execute a trade: `{ticker, quantity, side}`                  |
+| GET    | `/api/portfolio/history` | Portfolio value snapshots over time (for P&L chart)          |
 
 ### Watchlist
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/watchlist` | Current watchlist tickers with latest prices |
-| POST | `/api/watchlist` | Add a ticker: `{ticker}` |
-| DELETE | `/api/watchlist/{ticker}` | Remove a ticker |
+
+| Method | Path                      | Description                                  |
+| ------ | ------------------------- | -------------------------------------------- |
+| GET    | `/api/watchlist`          | Current watchlist tickers with latest prices |
+| POST   | `/api/watchlist`          | Add a ticker: `{ticker}`                     |
+| DELETE | `/api/watchlist/{ticker}` | Remove a ticker                              |
 
 ### Chat
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/chat` | Send a message, receive streamed LLM response |
+
+| Method | Path        | Description                                   |
+| ------ | ----------- | --------------------------------------------- |
+| POST   | `/api/chat` | Send a message, receive streamed LLM response |
 
 ### System
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/health` | Health check (for Docker/deployment) |
+
+| Method | Path          | Description                          |
+| ------ | ------------- | ------------------------------------ |
+| GET    | `/api/health` | Health check (for Docker/deployment) |
 
 ---
 
@@ -306,12 +318,8 @@ The LLM is instructed to respond with JSON matching this schema:
 ```json
 {
   "message": "Your conversational response to the user",
-  "trades": [
-    {"ticker": "AAPL", "side": "buy", "quantity": 10}
-  ],
-  "watchlist_changes": [
-    {"ticker": "PYPL", "action": "add"}
-  ]
+  "trades": [{ "ticker": "AAPL", "side": "buy", "quantity": 10 }],
+  "watchlist_changes": [{ "ticker": "PYPL", "action": "add" }]
 }
 ```
 
@@ -322,6 +330,7 @@ The LLM is instructed to respond with JSON matching this schema:
 ### Auto-Execution
 
 Trades specified by the LLM execute automatically — no confirmation dialog. This is a deliberate design choice:
+
 - It's a simulated environment with fake money, so the stakes are zero
 - It creates an impressive, fluid demo experience
 - It demonstrates agentic AI capabilities — the core theme of the course
@@ -331,6 +340,7 @@ If a trade fails validation (e.g., insufficient cash), the error is included in 
 ### System Prompt Guidance
 
 The LLM should be prompted as "FinAlly, an AI trading assistant" with instructions to:
+
 - Analyze portfolio composition, risk concentration, and P&L
 - Suggest trades with reasoning
 - Execute trades when the user asks or agrees
@@ -341,6 +351,7 @@ The LLM should be prompted as "FinAlly, an AI trading assistant" with instructio
 ### LLM Mock Mode
 
 When `LLM_MOCK=true`, the backend returns deterministic mock responses instead of calling OpenRouter. This enables:
+
 - Fast, free, reproducible E2E tests
 - Development without an API key
 - CI/CD pipelines
@@ -405,12 +416,14 @@ The `db/` directory in the project root maps to `/app/db` in the container. The 
 ### Start/Stop Scripts
 
 **`scripts/start_mac.sh`** (macOS/Linux):
+
 - Builds the Docker image if not already built (or if `--build` flag passed)
 - Runs the container with the volume mount, port mapping, and `.env` file
 - Prints the URL to access the app
 - Optionally opens the browser
 
 **`scripts/stop_mac.sh`** (macOS/Linux):
+
 - Stops and removes the running container
 - Does NOT remove the volume (data persists)
 
@@ -429,12 +442,14 @@ The container is designed to deploy to AWS App Runner, Render, or any container 
 ### Unit Tests (within `frontend/` and `backend/`)
 
 **Backend (pytest)**:
+
 - Market data: simulator generates valid prices, GBM math is correct, Massive API response parsing works, both implementations conform to the abstract interface
 - Portfolio: trade execution logic, P&L calculations, edge cases (selling more than owned, buying with insufficient cash, selling at a loss)
 - LLM: structured output parsing handles all valid schemas, graceful handling of malformed responses, trade validation within chat flow
 - API routes: correct status codes, response shapes, error handling
 
 **Frontend (React Testing Library or similar)**:
+
 - Component rendering with mock data
 - Price flash animation triggers correctly on price changes
 - Watchlist CRUD operations
@@ -448,6 +463,7 @@ The container is designed to deploy to AWS App Runner, Render, or any container 
 **Environment**: Tests run with `LLM_MOCK=true` by default for speed and determinism.
 
 **Key Scenarios**:
+
 - Fresh start: default watchlist appears, $10k balance shown, prices are streaming
 - Add and remove a ticker from the watchlist
 - Buy shares: cash decreases, position appears, portfolio updates
@@ -465,6 +481,7 @@ This project is built by Claude Code using a sub-agent orchestration pattern. Th
 ### Agent Roles
 
 **Architect** (runs first, all others depend on its output)
+
 - Produces `docs/ARCHITECTURE.md` — the definitive contract for all agents
 - Defines the shared API contract (request/response schemas for every endpoint)
 - Defines the market data provider abstract interface
@@ -473,6 +490,7 @@ This project is built by Claude Code using a sub-agent orchestration pattern. Th
 - Does NOT write application code — only contracts, types, and interfaces
 
 **Market Data Engineer**
+
 - Owns the market data subsystem within the backend
 - Implements the simulator (GBM, correlated moves, events)
 - Implements the Massive API client
@@ -481,6 +499,7 @@ This project is built by Claude Code using a sub-agent orchestration pattern. Th
 - Has no knowledge of or dependency on the frontend
 
 **Backend Engineer**
+
 - Owns the FastAPI application, API routes, SSE streaming, portfolio logic, and LLM integration
 - Implements database initialization (schema creation, seeding) in `backend/db/`
 - Consumes the market data interface (does not implement it)
@@ -488,6 +507,7 @@ This project is built by Claude Code using a sub-agent orchestration pattern. Th
 - Has no knowledge of frontend implementation details
 
 **Frontend Engineer**
+
 - Owns the entire Next.js project
 - Builds all UI components, Tailwind styling, SSE client, charts, animations, chat interface
 - Works against the API contract from the Architect — does not need to know backend internals
@@ -495,6 +515,7 @@ This project is built by Claude Code using a sub-agent orchestration pattern. Th
 - Has no knowledge of Python or backend implementation
 
 **DevOps Engineer**
+
 - Owns the Dockerfile, docker-compose files, start/stop scripts, and `.env.example`
 - Builds and validates the multi-stage Docker image
 - Sets up the Playwright test infrastructure in `test/`
@@ -502,6 +523,7 @@ This project is built by Claude Code using a sub-agent orchestration pattern. Th
 - Has no knowledge of application business logic
 
 **Integration Lead** (the orchestrator — the main Claude Code process)
+
 - Runs agents in the correct order respecting dependencies
 - After each agent: runs that agent's tests, verifies the build, checks for contract violations
 - Routes failures back to the responsible agent with context
@@ -559,18 +581,18 @@ Phase 5:  Integration Lead → full Docker build → Playwright E2E suite
 
 The following tickers are seeded in the default watchlist and supported by the simulator:
 
-| Ticker | Company | Approximate Seed Price |
-|--------|---------|----------------------|
-| AAPL | Apple | ~$190 |
-| GOOGL | Alphabet | ~$175 |
-| MSFT | Microsoft | ~$420 |
-| AMZN | Amazon | ~$185 |
-| TSLA | Tesla | ~$250 |
-| NVDA | NVIDIA | ~$130 |
-| META | Meta Platforms | ~$500 |
-| JPM | JPMorgan Chase | ~$200 |
-| V | Visa | ~$280 |
-| NFLX | Netflix | ~$630 |
+| Ticker | Company        | Approximate Seed Price |
+| ------ | -------------- | ---------------------- |
+| AAPL   | Apple          | ~$190                  |
+| GOOGL  | Alphabet       | ~$175                  |
+| MSFT   | Microsoft      | ~$420                  |
+| AMZN   | Amazon         | ~$185                  |
+| TSLA   | Tesla          | ~$250                  |
+| NVDA   | NVIDIA         | ~$130                  |
+| META   | Meta Platforms | ~$500                  |
+| JPM    | JPMorgan Chase | ~$200                  |
+| V      | Visa           | ~$280                  |
+| NFLX   | Netflix        | ~$630                  |
 
 The simulator should support additional tickers beyond these 10 (generating plausible seed prices for any valid ticker symbol), so users can add tickers via the watchlist and still see simulated data.
 

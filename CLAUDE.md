@@ -1,4 +1,4 @@
-# FinAlly Project - the Finance Ally
+# Finance App
 
 All project documentation is in the `planning` directory.
 
