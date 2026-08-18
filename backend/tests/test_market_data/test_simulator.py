@@ -23,7 +23,6 @@ from app.market_data.simulator import (
 
 from ._fake_clock import FakeClock
 
-
 # --- seed prices ---
 
 
@@ -185,9 +184,9 @@ def test_same_group_tickers_are_more_correlated_than_cross_group():
     returns: dict[str, list[float]] = {"AAPL": [], "MSFT": [], "TSLA": []}
     for _ in range(3000):
         sim._tick()
-        for t in returns:
+        for t, values in returns.items():
             snap = sim.get_latest(t)
-            returns[t].append(math.log(snap.price / snap.previous_price))
+            values.append(math.log(snap.price / snap.previous_price))
 
     corr_same_group = statistics.correlation(returns["AAPL"], returns["MSFT"])
     corr_cross_group = statistics.correlation(returns["AAPL"], returns["TSLA"])

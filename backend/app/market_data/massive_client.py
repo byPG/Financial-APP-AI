@@ -33,9 +33,9 @@ import logging
 import math
 import time
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Callable
+from datetime import UTC, datetime
 
 import httpx
 
@@ -145,12 +145,9 @@ class MassiveClient(MarketDataProvider):
         return self._client
 
     async def _run_loop(self) -> None:
-        try:
-            while self._running:
-                await self.poll_once()
-                await asyncio.sleep(self._poll_interval_seconds)
-        except asyncio.CancelledError:
-            raise
+        while self._running:
+            await self.poll_once()
+            await asyncio.sleep(self._poll_interval_seconds)
 
     async def poll_once(self) -> None:
         """Poll every currently-watched ticker once. A failure for one
@@ -166,7 +163,7 @@ class MassiveClient(MarketDataProvider):
                 response.raise_for_status()
                 data = response.json()
                 price, timestamp_iso = self._parse_quote_response(ticker, data)
-            except Exception:  # noqa: BLE001 - one bad ticker must not kill the poll
+            except Exception:
                 logger.warning("Massive/Polygon poll failed for %s", ticker, exc_info=True)
                 continue
 
@@ -219,5 +216,5 @@ class MassiveClient(MarketDataProvider):
         if not math.isfinite(timestamp_seconds) or timestamp_seconds <= 0:
             raise ValueError(f"invalid timestamp for {ticker}: {timestamp_ns!r}")
 
-        timestamp_iso = datetime.fromtimestamp(timestamp_seconds, tz=timezone.utc).isoformat()
+        timestamp_iso = datetime.fromtimestamp(timestamp_seconds, tz=UTC).isoformat()
         return price, timestamp_iso

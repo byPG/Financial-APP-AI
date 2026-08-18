@@ -16,9 +16,9 @@ import math
 import random
 import time
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Callable
+from datetime import UTC, datetime
 
 from app.market_data.base import MarketDataProvider, PricePoint, PriceSnapshot
 
@@ -93,7 +93,7 @@ def _generate_seed_price(ticker: str) -> float:
 
 
 def _iso(timestamp: float) -> str:
-    return datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat()
+    return datetime.fromtimestamp(timestamp, tz=UTC).isoformat()
 
 
 @dataclass
@@ -191,12 +191,9 @@ class MarketSimulator(MarketDataProvider):
     # --- internals ---
 
     async def _run_loop(self) -> None:
-        try:
-            while self._running:
-                self._tick()
-                await asyncio.sleep(self._tick_interval_seconds)
-        except asyncio.CancelledError:
-            raise
+        while self._running:
+            self._tick()
+            await asyncio.sleep(self._tick_interval_seconds)
 
     def _tick(self) -> None:
         """Advance every watched ticker by one simulated tick. Synchronous
