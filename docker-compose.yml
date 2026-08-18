@@ -1,0 +1,27 @@
+# Optional convenience wrapper around `docker build` / `docker run`.
+# See planning/PLAN.md Section 3 (Single Container, Single Port) and Section 11.
+#
+# Usage:
+#   docker compose up --build
+#
+# The scripts in scripts/ (start_mac.sh, start_windows.ps1, etc.) use plain
+# `docker build` / `docker run` directly rather than this file, so both paths
+# stay valid — this file is for developers who prefer `docker compose`.
+
+services:
+  finance-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: finance-app:latest
+    container_name: finance-app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      # Bind mount (not a named volume): the SQLite file lives at ./db/finally.db
+      # on the host and is visible/inspectable outside the container.
+      # See planning/PLAN.md Section 11.
+      - ./db:/app/db
+    restart: unless-stopped
