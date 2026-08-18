@@ -23,3 +23,9 @@ dev = [
 
 [tool.uv]
 package = false
+
+[tool.ruff.lint]
+# B008 flags `Depends(...)` used as a function-argument default as a "call
+# in a default argument" — but that's the standard, FastAPI-documented way
+# to do dependency injection, not a bug, and every route in app/ uses it.
+ignore = ["B008"]
