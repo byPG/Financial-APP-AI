@@ -6,7 +6,7 @@
 
 Finance App is a visually stunning AI-powered trading workstation that streams live market data, lets users trade a simulated portfolio, and integrates an LLM chat assistant that can analyze positions and execute trades on the user's behalf. It looks and feels like a modern Bloomberg terminal with an AI copilot.
 
-This is the capstone project for an agentic AI coding course. It is built entirely by Coding Agents demonstrating how orchestrated AI agents can produce a production-quality full-stack application. Agents interact through files in `planning/`.
+This is the capstone project for an agentic AI coding course. It is built entirely by Coding Agents demonstrating how orchestrated AI agents can produce a production-quality full-stack application. Agents interact through files in `planning/` (product spec and process docs, including this file) and `docs/` (the technical contract — `ARCHITECTURE.md` — produced by the Architect agent; see Section 4).
 
 ## 2. User Experience
 
@@ -92,7 +92,9 @@ finally/
 ├── frontend/                 # Next.js TypeScript project (static export)
 ├── backend/                  # FastAPI uv project (Python)
 │   └── db/                   # Schema definitions, seed data, migration logic
-├── planning/                 # Project-wide documentation for agents
+├── docs/                     # Technical contract for agents
+│   └── ARCHITECTURE.md       # Produced by the Architect agent; all other agents read this first
+├── planning/                 # Project-wide product/process documentation for agents
 │   ├── PLAN.md               # This document
 │   └── ...                   # Additional agent reference docs
 ├── scripts/
@@ -163,7 +165,7 @@ Both the simulator and the Massive client implement the same abstract interface.
 
 - REST API polling (not WebSocket) — simpler, works on all tiers
 - Polls for the union of all watched tickers on a configurable interval
-- Free tier (5 calls/min): poll every 15 seconds
+- Free tier (5 calls/min): poll every 15 seconds — confirm against Massive/Polygon.io's current free-tier rate limits at implementation time, as third-party limits change
 - Paid tiers: poll every 2-15 seconds depending on tier
 - Parses REST response into the same format as the simulator
 
@@ -171,8 +173,15 @@ Both the simulator and the Massive client implement the same abstract interface.
 
 - A single background task (simulator or Massive poller) writes to an in-memory price cache
 - The cache holds the latest price, previous price, and timestamp for each ticker
+- The cache only tracks tickers currently on the watchlist (see Section 14, Ticker Scope)
 - SSE streams read from this cache and push updates to connected clients
 - This architecture supports future multi-user scenarios without changes to the data layer
+
+### Price History (for sparklines and the main chart)
+
+- The same background task also appends a downsampled point per ticker to an in-memory ring buffer, roughly every 10-15 seconds (not every ~500ms tick) — a 30-minute window is then ~120-180 points per ticker, cheap to hold and serialize
+- No database table is needed — this history resets on restart, which is acceptable since it's presentation-only data
+- Exposed via `GET /api/prices/{ticker}/history` (see Section 8) for both the watchlist sparklines and the main chart
 
 ### SSE Streaming
 
@@ -193,6 +202,11 @@ The backend checks for the SQLite database on startup (or first request). If the
 - No separate migration step
 - No manual database setup
 - Fresh Docker volumes start with a clean, seeded database automatically
+
+### Concurrency & Safety
+
+- At least three writers hit the same SQLite file (trade execution, the periodic portfolio-snapshot task, chat message persistence). Enable WAL mode (`PRAGMA journal_mode=WAL`) on connection and keep transactions short, so concurrent writes don't raise "database is locked" errors.
+- All queries are parameterized (no string-built SQL), including for ticker/quantity/side values that originate from LLM-generated trades — that data is untrusted input from the backend's perspective regardless of source.
 
 ### Schema
 
@@ -258,16 +272,17 @@ All tables include a `user_id` column defaulting to `"default"`. This is hardcod
 
 ### Market Data
 
-| Method | Path                 | Description                      |
-| ------ | -------------------- | -------------------------------- |
-| GET    | `/api/stream/prices` | SSE stream of live price updates |
+| Method | Path                            | Description                                                            |
+| ------ | -------------------------------- | ----------------------------------------------------------------------- |
+| GET    | `/api/stream/prices`             | SSE stream of live price updates                                        |
+| GET    | `/api/prices/{ticker}/history`   | Downsampled price history for the last 30 min (sparklines, main chart)  |
 
 ### Portfolio
 
 | Method | Path                     | Description                                                  |
 | ------ | ------------------------ | ------------------------------------------------------------ |
 | GET    | `/api/portfolio`         | Current positions, cash balance, total value, unrealized P&L |
-| POST   | `/api/portfolio/trade`   | Execute a trade: `{ticker, quantity, side}`                  |
+| POST   | `/api/portfolio/trade`   | Execute a trade: `{ticker, quantity, side}`. `ticker` must be on the watchlist (Section 14, Ticker Scope), else 400 |
 | GET    | `/api/portfolio/history` | Portfolio value snapshots over time (for P&L chart)          |
 
 ### Watchlist
@@ -275,14 +290,15 @@ All tables include a `user_id` column defaulting to `"default"`. This is hardcod
 | Method | Path                      | Description                                  |
 | ------ | ------------------------- | -------------------------------------------- |
 | GET    | `/api/watchlist`          | Current watchlist tickers with latest prices |
-| POST   | `/api/watchlist`          | Add a ticker: `{ticker}`                     |
-| DELETE | `/api/watchlist/{ticker}` | Remove a ticker                              |
+| POST   | `/api/watchlist`          | Add a ticker: `{ticker}`. Must match `^[A-Z]{1,5}$`, else 400. Re-adding an existing ticker is idempotent (200, no error) |
+| DELETE | `/api/watchlist/{ticker}` | Remove a ticker. 404 if not found, 409 if an open position exists for it (Section 14, Ticker Scope) |
 
 ### Chat
 
-| Method | Path        | Description                                   |
-| ------ | ----------- | --------------------------------------------- |
-| POST   | `/api/chat` | Send a message, receive streamed LLM response |
+| Method | Path        | Description                                                                |
+| ------ | ----------- | ---------------------------------------------------------------------------- |
+| GET    | `/api/chat` | Recent conversation history, to repopulate the chat panel on page load       |
+| POST   | `/api/chat` | Send a message, receive the complete LLM response as one JSON payload (Section 9) |
 
 ### System
 
@@ -308,8 +324,8 @@ When the user sends a chat message, the backend:
 4. Calls the LLM via LiteLLM → OpenRouter, requesting structured output, using the openrouter-free skill
 5. Parses the structured response
 6. Auto-executes any trades or watchlist changes specified in the response
-7. Stores the message and executed actions in `chat_messages`
-8. Streams the conversational response back to the user token-by-token
+7. Stores the message and executed actions in `chat_messages` (`actions` is exactly `{trades, watchlist_changes}` as returned by the LLM, or `null` if both are empty)
+8. Returns the complete `message` text in a single JSON response — see Transport & Streaming below
 
 ### Structured Output Schema
 
@@ -324,8 +340,12 @@ The LLM is instructed to respond with JSON matching this schema:
 ```
 
 - `message` (required): The conversational text shown to the user
-- `trades` (optional): Array of trades to auto-execute. Each trade goes through the same validation as manual trades (sufficient cash for buys, sufficient shares for sells)
+- `trades` (optional): Array of trades to auto-execute. Each trade goes through the same validation as manual trades (sufficient cash for buys, sufficient shares for sells, ticker on the watchlist) — the LLM's output is untrusted input from the backend's perspective and is validated server-side like any other request
 - `watchlist_changes` (optional): Array of watchlist modifications
+
+### Transport & Streaming
+
+`POST /api/chat` is a single request/response — no SSE, no chunked transfer. The backend waits for the complete structured response from the LLM, executes any trades/watchlist changes, persists the message, and returns the finished `message` text as one JSON payload. The frontend applies a client-side typewriter animation to that text for the "streaming" feel described in Sections 2 and 10. This is deliberately simpler than incremental JSON parsing, which the structured-output schema doesn't support cleanly anyway (a client can't safely act on partial JSON).
 
 ### Auto-Execution
 
@@ -356,6 +376,8 @@ When `LLM_MOCK=true`, the backend returns deterministic mock responses instead o
 - Development without an API key
 - CI/CD pipelines
 
+Mock responses are selected with simple keyword matching on the user's message (e.g., a message containing "buy" returns a canned response with a `trades` entry; a message containing "watch" or "add" returns one with a `watchlist_changes` entry; anything else returns a generic canned reply). This is enough to let the Playwright "AI chat executes a trade" scenario (Section 12) actually trigger a trade deterministically, without needing a real keyword parser.
+
 ---
 
 ## 10. Frontend Design
@@ -365,12 +387,12 @@ When `LLM_MOCK=true`, the backend returns deterministic mock responses instead o
 The frontend is a single-page application with a dense, terminal-inspired layout. The specific component architecture and layout system is up to the Frontend Engineer, but the UI should include these elements:
 
 - **Watchlist panel** — grid/table of watched tickers with: ticker symbol, current price (flashing green/red on change), daily change %, and a sparkline mini-chart (last 30 min)
-- **Main chart area** — larger chart for the currently selected ticker, with at minimum price over time. Clicking a ticker in the watchlist selects it here.
+- **Main chart area** — larger chart for the currently selected ticker, with at minimum price over time. Clicking a ticker in the watchlist selects it here. Defaults to the first watchlist ticker on initial load.
 - **Portfolio heatmap** — treemap visualization where each rectangle is a position, sized by portfolio weight, colored by P&L (green = profit, red = loss)
 - **P&L chart** — line chart showing total portfolio value over time, using data from `portfolio_snapshots`
 - **Positions table** — tabular view of all positions: ticker, quantity, avg cost, current price, unrealized P&L, % change
 - **Trade bar** — simple input area: ticker field, quantity field, buy button, sell button. Market orders, instant fill.
-- **AI chat panel** — docked/collapsible sidebar. Message input, scrolling conversation history, token-by-token streaming for assistant responses. Trade executions and watchlist changes shown inline as confirmations.
+- **AI chat panel** — docked/collapsible sidebar. Message input, scrolling conversation history, client-side typewriter animation for assistant responses (see Section 9, Transport & Streaming). Trade executions and watchlist changes shown inline as confirmations. Populated from `GET /api/chat` on page load.
 - **Header** — portfolio total value (updating live), connection status indicator, cash balance
 
 ### Technical Notes
@@ -405,13 +427,13 @@ FastAPI serves the static frontend files and all API routes on port 8000.
 
 ### Docker Volume
 
-The SQLite database persists via a named Docker volume:
+The SQLite database persists via a bind mount of the repo's `db/` directory, so students can see the database file directly on disk rather than in an opaque Docker-managed volume:
 
 ```bash
-docker run -v finally-data:/app/db -p 8000:8000 --env-file .env finally
+docker run -v "$(pwd)/db:/app/db" -p 8000:8000 --env-file .env finally
 ```
 
-The `db/` directory in the project root maps to `/app/db` in the container. The backend writes `finally.db` to this path.
+The `db/` directory in the project root maps to `/app/db` in the container. The backend writes `finally.db` to this path. This matches Section 4's directory structure, where `db/` is a repo directory with a gitignored `finally.db`.
 
 ### Start/Stop Scripts
 
@@ -427,7 +449,7 @@ The `db/` directory in the project root maps to `/app/db` in the container. The 
 - Stops and removes the running container
 - Does NOT remove the volume (data persists)
 
-**`scripts/start_pc.ps1`** / **`scripts/stop_pc.ps1`**: PowerShell equivalents for Windows.
+**`scripts/start_windows.ps1`** / **`scripts/stop_windows.ps1`**: PowerShell equivalents for Windows, same behavior as the `_mac` scripts above.
 
 All scripts should be idempotent — safe to run multiple times.
 
@@ -469,7 +491,7 @@ The container is designed to deploy to AWS App Runner, Render, or any container 
 - Buy shares: cash decreases, position appears, portfolio updates
 - Sell shares: cash increases, position updates or disappears
 - Portfolio visualization: heatmap renders with correct colors, P&L chart has data points
-- AI chat (mocked): send a message, receive a streamed response, trade execution appears inline
+- AI chat (mocked): send a message, receive a response, trade execution appears inline
 - SSE resilience: disconnect and verify reconnection
 
 ---
@@ -487,7 +509,8 @@ This project is built by Claude Code using a sub-agent orchestration pattern. Th
 - Defines the market data provider abstract interface
 - Defines Pydantic models (backend) and TypeScript types (frontend) that must stay in sync
 - Makes all technology decisions concrete (specific library versions, configuration patterns)
-- Does NOT write application code — only contracts, types, and interfaces
+- Scaffolds the empty-but-configured `backend/pyproject.toml` and `frontend/package.json` project skeletons (dependencies declared, no application code) so the Market Data Engineer and Frontend Engineer have a shared project to build into from Phase 2 onward
+- Does NOT write application code — only contracts, types, interfaces, and the project skeletons above
 
 **Market Data Engineer**
 
@@ -536,8 +559,9 @@ This project is built by Claude Code using a sub-agent orchestration pattern. Th
 Phase 1:  Architect → validate ARCHITECTURE.md exists and is complete
 
 Phase 2:  Market Data Engineer → unit tests pass
-          DevOps Engineer → Docker builds successfully
-          (these two run in parallel)
+          DevOps Engineer → Dockerfile authored and syntactically valid, start/stop scripts idempotent
+          (these two run in parallel; a full "image builds and runs" check isn't possible yet —
+          frontend/ and backend/ application code don't exist until Phases 3-4 — that check moves to Phase 5)
 
 Phase 3:  Backend Engineer → unit tests pass, API serves correctly
 
@@ -565,9 +589,15 @@ Phase 5:  Integration Lead → full Docker build → Playwright E2E suite
 - **No fees or slippage**: price paid = current cached price
 - **Buy validation**: `quantity * price <= cash_balance`
 - **Sell validation**: user must own >= `quantity` shares of that ticker
-- **Position updates**: buying increases quantity and recalculates average cost; selling decreases quantity (FIFO or average cost — Architect decides)
-- **Position removal**: when quantity reaches 0, the position row can be deleted or kept with quantity 0 (Architect decides)
+- **Position updates**: buying increases quantity and recalculates average cost; selling decreases quantity. Average-cost accounting only — the schema's single `avg_cost` column doesn't support per-lot (FIFO) tracking
+- **Position removal**: when quantity reaches 0 after a sell, the position row is deleted. Realized P&L is out of scope for v1 (it's derivable later from the append-only `trades` table if needed) — the positions table always reflects current holdings only
 - **Cash updates**: atomic with position updates (single transaction)
+
+### Ticker Scope
+
+- A ticker must be on the watchlist before it can be traded — `POST /api/portfolio/trade` returns 400 for a ticker not on the watchlist, since the price cache (Section 6) only tracks watched tickers. This keeps the pricing model simple: no "price any symbol on demand" logic
+- `DELETE /api/watchlist/{ticker}` returns 409 while an open position exists for that ticker, so a held position's price can never go stale from being dropped out of the cache. The user must sell the position to zero before removing the ticker
+- Ticker format: `^[A-Z]{1,5}$` (1-5 uppercase letters). There's no real symbol lookup in simulator mode, so this format check is the only validity rule — the simulator generates a plausible seed price for any symbol matching it
 
 ### P&L Calculations
 
@@ -624,5 +654,6 @@ The project is complete when:
 4. The portfolio heatmap and P&L chart render correctly with live data
 5. The AI chat responds with streaming text, and can execute trades and manage the watchlist via natural language
 6. The simulator provides a compelling real-time experience with no external dependencies
-7. All Playwright E2E tests pass
-8. The Docker image builds cleanly from a fresh clone + `.env` file
+7. Backend and frontend unit test suites pass
+8. All Playwright E2E tests pass
+9. The Docker image builds cleanly from a fresh clone + `.env` file
