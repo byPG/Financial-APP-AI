@@ -3,11 +3,7 @@
 # dependencies never end up in the production image.
 # See planning/PLAN.md Section 12 (Testing Strategy — E2E).
 #
-# This is scaffolding only: there are no Playwright spec files yet (a later
-# phase adds them under test/specs/ or similar). This file just establishes
-# the correct shape -- app service + test-runner service, health-gated.
-#
-# Usage (once specs exist):
+# Usage:
 #   docker compose -f test/docker-compose.test.yml up --build --abort-on-container-exit
 
 services:
@@ -24,9 +20,10 @@ services:
       # or network calls required. See planning/PLAN.md Section 5 / 12.
       LLM_MOCK: "true"
       OPENROUTER_API_KEY: "unused-in-mock-mode"
-    volumes:
-      # Ephemeral, isolated test data -- not the developer's real ./db.
-      - test-db:/app/db
+    # No volume: /app/db lives in the container's own writable layer, so
+    # every `up --build` starts from a genuinely empty, freshly-seeded
+    # database (01-fresh-start.spec.ts depends on this) with no manual
+    # cleanup between runs.
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 5s
@@ -39,18 +36,10 @@ services:
     container_name: finance-app-playwright
     working_dir: /work
     volumes:
-      # Mount the test/ directory so specs (once written) are available
-      # inside the container without baking them into an image.
       - ./:/work
     environment:
       BASE_URL: "http://app:8000"
     depends_on:
       app:
         condition: service_healthy
-    # Placeholder command: no specs exist yet. Once test/specs/ (or similar)
-    # is populated with a package.json + Playwright config, replace this
-    # with e.g. `npm ci && npx playwright test`.
-    command: ["true"]
-
-volumes:
-  test-db:
+    command: ["sh", "-c", "npm ci && npx playwright test"]
