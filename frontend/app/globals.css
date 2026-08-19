@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+@theme {
+  /* planning/PLAN.md Section 2, Color Scheme */
+  --color-accent-yellow: #ecad0a;
+  --color-blue-primary: #209dd7;
+  --color-purple-secondary: #753991;
+
+  --color-bg-base: #0d1117;
+  --color-bg-panel: #12141c;
+  --color-bg-raised: #1a1a2e;
+  --color-border-muted: #2a2e3a;
+
+  --color-up: #22c55e;
+  --color-down: #ef4444;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-bg-base);
+  color: #e6e8ee;
+  font-family: var(--font-sans);
+}
+
+* {
+  border-color: var(--color-border-muted);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-base);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-muted);
+  border-radius: 6px;
+}
+
+/* Price flash animations: planning/PLAN.md Section 2 + Section 10. Applied
+   as a CSS class on price change, briefly highlighting the cell, then
+   fading out over ~500ms. */
+@keyframes flash-up {
+  0% {
+    background-color: color-mix(in srgb, var(--color-up) 35%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes flash-down {
+  0% {
+    background-color: color-mix(in srgb, var(--color-down) 35%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.flash-up {
+  animation: flash-up 600ms ease-out;
+}
+
+.flash-down {
+  animation: flash-down 600ms ease-out;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.pulse-dot {
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}

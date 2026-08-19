@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -98,6 +99,17 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Finance App Backend", lifespan=lifespan)
+
+# Static export is same-origin in production (Section 3, PLAN.md), so this
+# only matters for `next dev` (localhost:3000) talking to this server
+# (localhost:8000) during frontend development. No auth/cookies exist in
+# this app (Section 16), so a permissive origin list carries no real risk.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.exception_handler(RequestValidationError)
