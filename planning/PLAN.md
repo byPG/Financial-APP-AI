@@ -310,7 +310,7 @@ All tables include a `user_id` column defaulting to `"default"`. This is hardcod
 
 ## 9. LLM Integration
 
-When writing code to make calls to LLMs, use the openrouter-free skill to use LiteLLM via OpenRouter to the `openrouter/deepseek/deepseek-chat-v3.1:free` model (a free-tier OpenRouter model, no inference cost). Structured Outputs should be used to interpret the results.
+When writing code to make calls to LLMs, use the openrouter-free skill to use LiteLLM via OpenRouter to a free-tier OpenRouter model (no inference cost) — currently `openrouter/google/gemma-4-26b-a4b-it:free`; OpenRouter's free-tier catalog changes over time, so confirm the model is still free and supports structured outputs before relying on it. Structured Outputs should be used to interpret the results.
 
 There is an OPENROUTER_API_KEY in the .env file in the project root.
 

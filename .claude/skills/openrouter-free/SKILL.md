@@ -23,7 +23,7 @@ Use code like these examples in order to use a free OpenRouter model.
 
 ```python
 from litellm import completion
-MODEL = "openrouter/deepseek/deepseek-chat-v3.1:free"
+MODEL = "openrouter/google/gemma-4-26b-a4b-it:free"
 ```
 
 ### Code to call for a text response
@@ -44,4 +44,5 @@ result_as_object = MyBaseModelSubclass.model_validate_json(result)
 ## Notes
 
 - Free OpenRouter models (suffixed `:free`) have low rate limits and may queue under load — acceptable for this project's single-user, simulated-money use case.
+- OpenRouter's free-tier catalog changes over time (models get retired or moved to paid-only) — verify a model is still listed at `openrouter.ai/models` filtered to free before relying on it, e.g. via `GET https://openrouter.ai/api/v1/models` and checking the `id` ends in `:free`.
 - If the model changes, keep the `:free` suffix so no billing is incurred.

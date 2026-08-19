@@ -51,7 +51,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
-MODEL = "openrouter/deepseek/deepseek-chat-v3.1:free"
+# deepseek/deepseek-chat-v3.1:free was retired from OpenRouter's free tier
+# (now paid-only); google/gemma-4-26b-a4b-it:free is a currently-free
+# alternative confirmed to support structured JSON outputs.
+MODEL = "openrouter/google/gemma-4-26b-a4b-it:free"
 
 # How many prior messages (both roles) to include as conversation history
 # when calling the LLM. Small on purpose — this is a simulated single-user
