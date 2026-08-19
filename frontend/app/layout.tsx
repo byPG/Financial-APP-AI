@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FinAlly — AI Trading Workstation",
+  title: "Financial APP — AI Trading Workstation",
   description: "A simulated trading terminal with a live AI copilot.",
 };
 

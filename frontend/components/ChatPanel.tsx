@@ -71,13 +71,13 @@ export default function ChatPanel() {
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
         {messages.length === 0 && (
           <p className="text-sm text-gray-500">
-            Ask FinAlly about your portfolio, or tell it to buy/sell or manage your watchlist.
+            Ask Financial APP about your portfolio, or tell it to buy/sell or manage your watchlist.
           </p>
         )}
         {messages.map((m) => (
           <ChatMessageBubble key={m.id} message={m} animate={m.id === newMessageId} />
         ))}
-        {sending && <p className="text-xs text-gray-500">FinAlly is thinking…</p>}
+        {sending && <p className="text-xs text-gray-500">Financial APP is thinking…</p>}
       </div>
 
       {error && <p className="px-3 pb-1 text-xs text-down">{error}</p>}
@@ -86,7 +86,7 @@ export default function ChatPanel() {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Message FinAlly…"
+          placeholder="Message Financial APP…"
           disabled={sending}
           className="min-w-0 flex-1 rounded border border-border-muted bg-bg-base px-2 py-1.5 text-sm text-gray-100 outline-none focus:border-blue-primary disabled:opacity-50"
         />

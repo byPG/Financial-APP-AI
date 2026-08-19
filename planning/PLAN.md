@@ -359,7 +359,7 @@ If a trade fails validation (e.g., insufficient cash), the error is included in 
 
 ### System Prompt Guidance
 
-The LLM should be prompted as "FinAlly, an AI trading assistant" with instructions to:
+The LLM should be prompted as "Financial APP, an AI trading assistant" with instructions to:
 
 - Analyze portfolio composition, risk concentration, and P&L
 - Suggest trades with reasoning

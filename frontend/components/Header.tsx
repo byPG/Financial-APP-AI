@@ -12,7 +12,7 @@ export default function Header() {
   return (
     <header className="flex items-center justify-between border-b border-border-muted bg-bg-panel px-6 py-3">
       <div className="flex items-center gap-3">
-        <span className="text-lg font-bold tracking-tight text-accent-yellow">FinAlly</span>
+        <span className="text-lg font-bold tracking-tight text-accent-yellow">Financial APP</span>
         <span className="hidden text-xs text-gray-500 sm:inline">AI Trading Workstation</span>
       </div>
 

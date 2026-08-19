@@ -170,7 +170,7 @@ def _build_system_prompt(portfolio: PortfolioResponse, watchlist: WatchlistRespo
         for item in watchlist.items
     )
 
-    return f"""You are FinAlly, an AI trading assistant for a simulated portfolio (no real money).
+    return f"""You are Financial APP, an AI trading assistant for a simulated portfolio (no real money).
 
 Current portfolio:
   Cash balance: {portfolio.cash_balance:.2f}
