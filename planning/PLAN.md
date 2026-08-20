@@ -453,10 +453,6 @@ The `db/` directory in the project root maps to `/app/db` in the container. The 
 
 All scripts should be idempotent — safe to run multiple times.
 
-### Optional Cloud Deployment
-
-The container is designed to deploy to AWS App Runner, Render, or any container platform. A Terraform configuration for App Runner may be provided in a `deploy/` directory as a stretch goal, but is not part of the core build.
-
 ---
 
 ## 12. Testing Strategy
@@ -640,7 +636,7 @@ These items are explicitly out of scope:
 - **No WebSocket protocol** — SSE only for real-time data
 - **No external database** — SQLite only, no Postgres/Supabase
 - **No CI/CD pipeline** — Docker build + local scripts are sufficient
-- **No cloud deployment in core scope** — Terraform/App Runner is a stretch goal only
+- **No cloud deployment** — the Docker image is portable to any container platform, but provisioning/deployment config (e.g. Terraform) is out of scope
 
 ---
 
