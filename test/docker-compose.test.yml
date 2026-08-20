@@ -15,6 +15,16 @@ services:
     container_name: finance-app-test
     ports:
       - "8000:8000"
+    networks:
+      default:
+        # A bare single-label Compose service name (no dot) makes Chromium's
+        # HTTPS-Upgrades heuristic silently try to upgrade the Playwright
+        # container's http:// navigation to https:// first, which then
+        # fails with net::ERR_SSL_PROTOCOL_ERROR against this plain-HTTP
+        # server -- IPs and dotted hostnames are exempt, bare ones aren't.
+        # A dotted alias sidesteps that without touching browser flags.
+        aliases:
+          - app.local
     environment:
       # E2E tests run against deterministic mock LLM responses, no API key
       # or network calls required. See planning/PLAN.md Section 5 / 12.
@@ -32,13 +42,18 @@ services:
       start_period: 10s
 
   playwright:
-    image: mcr.microsoft.com/playwright:v1.48.0-jammy
+    # Must match the @playwright/test version pinned in test/package.json --
+    # this image's pre-baked browsers have to match exactly, or
+    # browserType.launch() fails looking for a browser build that isn't
+    # there (npm ci resolves whatever that pin says, independent of what
+    # version this image tag implies).
+    image: mcr.microsoft.com/playwright:v1.62.1-jammy
     container_name: finance-app-playwright
     working_dir: /work
     volumes:
       - ./:/work
     environment:
-      BASE_URL: "http://app:8000"
+      BASE_URL: "http://app.local:8000"
     depends_on:
       app:
         condition: service_healthy
