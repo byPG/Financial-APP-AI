@@ -10,9 +10,13 @@
 
 $ContainerName = "finance-app"
 
+# Scoped to --type container: a plain `docker inspect $ContainerName` is
+# ambiguous with an image of the same name (finance-app:latest, built by
+# start_windows.ps1) and would report "exists" from the image match even
+# with no container present, breaking idempotency on a second run.
 $exists = $true
 try {
-    docker inspect $ContainerName *> $null
+    docker inspect --type container $ContainerName *> $null
 } catch {
     $exists = $false
 }
@@ -27,3 +31,9 @@ if ($exists) {
 } else {
     Write-Output "Container '$ContainerName' is not present. Nothing to do."
 }
+
+# The existence check above is expected to fail (non-zero $LASTEXITCODE)
+# exactly when there's nothing to do -- without this, that expected
+# failure leaks out as this script's own exit code, making a successful
+# idempotent no-op run look like a failure to any caller checking it.
+exit 0

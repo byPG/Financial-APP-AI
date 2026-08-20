@@ -61,7 +61,10 @@ if ($Build -or -not $imageExists) {
 # start fresh. If it doesn't exist, just run it.
 $state = $null
 try {
-    $state = docker inspect -f "{{.State.Running}}" $ContainerName 2>$null
+    # --type container: an unscoped `docker inspect` is ambiguous with the
+    # image of the same name built above and can silently match it instead
+    # of correctly reporting "no such container".
+    $state = docker inspect --type container -f "{{.State.Running}}" $ContainerName 2>$null
 } catch {
     $state = $null
 }
